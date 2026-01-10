@@ -1,0 +1,8 @@
+# Panda Cloud Users Database
+# Format: username:password:aws_access_key:aws_secret_key:bucket_name:endpoint:region
+# Lines starting with # are comments
+
+panda:panda:XpLEzFrNsGIibeK8:swVubPu29njKi7WVFbQI8eqMvFSwOvBP0iX8KeK3:panda-cloud:s3.tebi.io:us-east-1
+momo:momo:CgH4qWDdOWPEAjcT:0JM7qtRdD4qBO7QF8kNwKqbvDxTX9s6hGlJC9Kru:mgr:s3.tebi.io:us-east-1
+# Add new users in the same format:
+# username:password:access_key:secret_key:bucket:endpoint:region
