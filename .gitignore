@@ -1,5 +1,7 @@
 # Environment files
 .env
+users.txt
+*.db
 
 # SSH keys  
 Baymax.txt

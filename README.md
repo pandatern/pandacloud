@@ -1,136 +1,191 @@
-# 🐼 Panda Cloud
+# Panda Cloud
 
-A lightweight, secure file management system with direct S3 streaming capabilities.
+File storage system that connects your S3 bucket to a web interface. Files upload and download directly between your browser and S3.
 
-## Features
+## What It Does
 
-- 🔐 **Multi-user authentication** with individual S3 credentials
-- 📁 **Universal file preview** - supports images, PDFs, videos, and more
-- ☁️ **Direct S3 streaming** - unlimited file sizes, zero server storage
-- 🎨 **Clean interface** - professional white/black theme
-- 🚀 **Lightweight** - 972KB binary, minimal resource usage
-- 🔒 **Secure** - AWS Signature V4 authentication, presigned URLs
+- Store and retrieve files using any S3-compatible storage service
+- Multiple users, each with their own S3 credentials and bucket
+- Files stream directly between browser and S3 (server only handles authentication and generates signed URLs)
+- Preview images, PDFs, and videos in browser
+- Admin panel for user management
 
-## Architecture
+## How It Works
 
-Panda Cloud uses a smart presigned URL architecture:
-- Backend only handles metadata and URL signing
-- File uploads/downloads go directly to S3
-- No file data touches the server
-- Unlimited concurrent operations
+The server doesn't store files. When you upload or download:
 
-## Quick Start
+1. Browser asks server for a signed URL
+2. Server generates a temporary URL with AWS Signature V4
+3. Browser uploads/downloads directly to/from S3 using that URL
+4. Server never touches the file data
 
-### Requirements
-- Nim compiler
-- S3-compatible storage (AWS S3, Tebi.io, etc.)
+This means no file size limits and no server storage needed.
 
-### Installation
+## Requirements
 
-1. Clone the repository:
-```bash
-git clone https://github.com/pandatern/cloud.git
-cd cloud
+- Nim compiler (version 1.6.0 or later)
+- S3-compatible storage account (AWS S3, Tebi.io, MinIO, etc.)
+- Access key, secret key, and bucket name from your S3 provider
+
+## Installation
+
+1. Install Nim if you don't have it
+2. Clone this repository
+3. Build the binary:
+   ```bash
+   chmod +x build.sh
+   ./build.sh
+   ```
+
+## Configuration
+
+Create a `users.txt` file with this format:
+```
+username:password:access_key:secret_key:bucket_name:endpoint:region
 ```
 
-2. Build for production:
-```bash
-chmod +x build.sh
-./build.sh
+Example:
+```
+alice:secure_password:AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY:my-bucket:s3.tebi.io:us-east-1
+bob:another_password:AKIAI44QH8DHBEXAMPLE:je7MtGbClwBF/2Zp9Utk/h3yCo8nvbEXAMPLEKEY:bob-bucket:s3.amazonaws.com:us-west-2
 ```
 
-3. Configure users in `users.txt`:
+Lines starting with `#` are comments.
+
+The first time each user logs in, their plaintext password automatically converts to a hashed version for security.
+
+## Admin User
+
+Set admin username with environment variable:
 ```bash
-# Format: username:password:access_key:secret_key:bucket:endpoint:region
-demo:demo123:your_access_key:your_secret_key:your_bucket:s3.tebi.io:us-east-1
+export ADMIN_USERNAME=alice
 ```
 
-4. Start the server:
+If not set, defaults to "momo". The admin user can:
+- View all users
+- Add new users
+- Update user credentials
+- Delete users (except themselves)
+
+Access admin panel at `/admin` or use `admin.` subdomain.
+
+## Running
+
+Start the server:
 ```bash
 ./panda_vault_v2
 ```
 
-5. Access at `http://localhost:8082`
+Server runs on port 5000 by default. Access at `http://localhost:5000`
 
-## Multi-User Setup
+## Port Configuration
 
-Add multiple users by adding more environment variables:
+The code has port settings in two places that don't match:
+- Line 8: `port = Port(5000)`
+- Line 3: Echo message says "PORT 9090"
 
-```bash
-# User 1
-USER_alice_PASSWORD="alice123"
-USER_alice_AWS_ACCESS_KEY_ID="alice_key"
-USER_alice_AWS_SECRET_ACCESS_KEY="alice_secret"
-USER_alice_AWS_S3_BUCKET="alice_bucket"
+The actual port is 5000. The echo message is wrong.
 
-# User 2  
-USER_bob_PASSWORD="bob456"
-USER_bob_AWS_ACCESS_KEY_ID="bob_key"
-USER_bob_AWS_SECRET_ACCESS_KEY="bob_secret"
-USER_bob_AWS_S3_BUCKET="bob_bucket"
-```
+## Behind a Reverse Proxy
 
-## Production Deployment
-
-### Quick Deployment
-```bash
-# Build and start
-./build.sh
-./panda_vault_v2 &
-
-# Hot deploy frontend updates (without restart)
-./hotdeploy.sh
-```
-
-### With Nginx (Recommended)
-
-1. Run Panda Cloud:
-```bash
-tmux new-session -d -s panda_cloud './panda_vault_v2'
-```
-
-2. Configure Nginx:
+Example nginx configuration:
 ```nginx
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name cloud.example.com;
     
     location / {
-        proxy_pass http://localhost:8082;
+        proxy_pass http://localhost:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 }
 ```
 
+## Security Features
+
+- Passwords hashed with SHA-256 and random salt
+- Session IDs generated with cryptographically secure random bytes
+- Session timeout after 24 hours of inactivity
+- AWS Signature V4 for all S3 requests
+- Presigned URLs expire after 1 hour
+- Admin functions require admin privileges
+
 ## API Endpoints
 
-- `POST /api/login` - User authentication
-- `GET /api/files` - List files  
-- `POST /api/sign-upload` - Generate upload URLs
-- `POST /api/delete` - Delete files
+- `POST /api/login` - Authenticate user
+- `GET /api/files?prefix=folder/` - List files and folders
+- `POST /api/sign-upload` - Get URL for uploading
+- `POST /api/delete` - Delete a file
+- `POST /api/create-folder` - Create folder
+- `GET /api/admin/users` - List users (admin only)
+- `POST /api/admin/add-user` - Add user (admin only)
+- `POST /api/admin/update-user` - Update user (admin only)
+- `POST /api/admin/delete-user` - Delete user (admin only)
 
-## Technical Details
+## S3 Compatibility
 
-- **Language**: Nim + Jester web framework
-- **Frontend**: Vanilla JS + TailwindCSS
-- **Storage**: S3-compatible (AWS S3, Tebi.io, MinIO, etc.)
-- **Authentication**: Multi-user with environment-based credentials
-- **Security**: AWS Signature V4, secure session management
+The code tries three different S3 API modes to work with different providers:
+1. Modern S3 (list-type=2)
+2. Legacy S3 (delimiter only)
+3. Simple mode (prefix only)
 
-## Performance
+It detects what works for your provider and remembers it.
 
-- **Binary size**: 972KB
-- **Memory usage**: ~10MB base + sessions
-- **Concurrent uploads**: Unlimited (direct to S3)
-- **File size limit**: None (streaming architecture)
-- **Throughput**: Limited only by S3 and network bandwidth
+## File Structure
 
-## License
+- `panda_vault_v2.nim` - Main application (with numThreads = 1)
+- `panda_new.nim` - Identical copy without numThreads setting
+- `sqlite_auth_code.nim` - Alternative SQLite authentication (not used by default)
+- `public/index.html` - Main user interface
+- `public/admin.html` - Admin interface
+- `public/performance.js` - Performance monitoring
+- `users.txt` - User credentials database
 
-MIT License - see LICENSE file for details.
+## Development
+
+Hot reload frontend changes without restart:
+```bash
+./hotdeploy.sh
+```
+
+The server reads static files from disk on each request, so HTML/CSS/JS changes apply immediately.
+
+## Known Issues
+
+1. Both `panda_vault_v2.nim` and `panda_new.nim` exist with nearly identical code
+2. Port number mismatch in startup message
+3. System time validation is strict (fails if year is outside 2020-2030 range)
+4. `.gitignore` references "Baymax.txt" which suggests a private key was previously in the repo
+5. License is set to "proprietary" in nimble file
+
+## Binary Size
+
+Compiled binary is approximately 1.5-2.8 MB depending on build settings and which version you compile.
+
+## Memory Usage
+
+Base memory usage around 10MB plus overhead for each active session.
+
+## Monitoring
+
+Performance metrics available via `/performance.js` endpoint.
+
+## Cache
+
+Server caches S3 list responses for 2 minutes to reduce API calls. Cache invalidates when you upload, delete, or create folders.
 
 ## Contributing
 
-Pull requests welcome! Please ensure code follows the existing style and includes appropriate tests.
+The codebase uses Nim language with the Jester web framework. Make sure changes work with both S3 and S3-compatible services.
+
+## Security
+
+A security audit has been performed on this codebase. See `SECURITY_FINDINGS.md` for details on identified issues and recommendations.
+
+Key security considerations:
+- Always set strong passwords for users
+- Protect the `users.txt` file (chmod 600) - it contains AWS credentials
+- Set `ADMIN_USERNAME` environment variable in production
+- Use HTTPS in production with a reverse proxy
+- Consider implementing rate limiting for production deployments
