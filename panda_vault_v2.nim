@@ -276,7 +276,7 @@ proc updateUserInDatabase(username: string, updates: Table[string, string]): boo
     var user = usersDatabase[username]
     
     if "password" in updates:
-      user.password = updates["password"]  # Password is already hashed when passed to this function
+      user.password = updates["password"]
     if "accessKey" in updates:
       user.accessKey = updates["accessKey"]
     if "secretKey" in updates:
@@ -1206,7 +1206,11 @@ routes:
         
         var updates = initTable[string, string]()
         for key, value in updatesJson:
-          updates[key] = value.getStr()
+          if key == "password":
+            # Hash password before storing
+            updates[key] = hashPassword(value.getStr())
+          else:
+            updates[key] = value.getStr()
         
         if updateUserInDatabase(username, updates):
           resp %*{"success": true, "message": "User updated successfully"}
