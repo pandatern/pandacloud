@@ -169,7 +169,6 @@ proc generateSecureSessionId(): string =
   return sessionId
 
 proc loadUsersFromFile(): void =
-  echo "🔍 DEBUG: Code is updated!"
   # Load users from users.txt file
   if fileExists("users.txt"):
     # echo "📁 Loading users from users.txt file..."

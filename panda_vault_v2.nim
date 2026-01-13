@@ -172,7 +172,6 @@ proc generateSecureSessionId(): string =
   return sessionId
 
 proc loadUsersFromFile(): void =
-  echo "🔍 DEBUG: Code is updated!"
   # Load users from users.txt file
   if fileExists("users.txt"):
     # echo "📁 Loading users from users.txt file..."
@@ -209,13 +208,28 @@ proc loadUsersFromFile(): void =
           usersDatabase[user.username] = user
           echo "✅ Loaded user: ", user.username, if user.isAdmin: " (ADMIN)" else: ""
   else:
-    echo "❌ users.txt file not found. Creating example file..."
-    writeFile("users.txt", """# Panda Cloud Users Database
+    echo "❌ users.txt file not found."
+    if fileExists("users.txt.example"):
+      echo "📋 Copying users.txt.example to users.txt..."
+      let exampleContent = readFile("users.txt.example")
+      writeFile("users.txt", exampleContent)
+      echo "⚠️  Please edit users.txt and add your credentials"
+    else:
+      echo "📝 Creating users.txt template..."
+      writeFile("users.txt", """# Panda Cloud Users Database
 # Format: username:password:aws_access_key:aws_secret_key:bucket_name:endpoint:region
 # Lines starting with # are comments
+# 
+# SECURITY WARNING: This file contains sensitive credentials.
+# - Set file permissions to 600: chmod 600 users.txt
+# - Never commit this file with real credentials to version control
+# - Use strong passwords and rotate AWS keys regularly
 
-# Example user (replace with your credentials):
-# demo:demo123:your_access_key:your_secret_key:your_bucket:s3.tebi.io:us-east-1
+# Example user (replace with your actual credentials):
+# demo:your_password:YOUR_AWS_ACCESS_KEY:YOUR_AWS_SECRET_KEY:your-bucket-name:s3.tebi.io:us-east-1
+
+# Add more users in the same format:
+# username:password:access_key:secret_key:bucket:endpoint:region
 """)
 
 proc getUserRecord(username: string): UserRecord =

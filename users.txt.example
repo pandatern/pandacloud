@@ -1,0 +1,14 @@
+# Panda Cloud Users Database
+# Format: username:password:aws_access_key:aws_secret_key:bucket_name:endpoint:region
+# Lines starting with # are comments
+# 
+# SECURITY WARNING: This file contains sensitive credentials.
+# - Set file permissions to 600: chmod 600 users.txt
+# - Never commit this file with real credentials to version control
+# - Use strong passwords and rotate AWS keys regularly
+
+# Example user (replace with your actual credentials):
+# demo:your_password:YOUR_AWS_ACCESS_KEY:YOUR_AWS_SECRET_KEY:your-bucket-name:s3.tebi.io:us-east-1
+
+# Add more users in the same format:
+# username:password:access_key:secret_key:bucket:endpoint:region

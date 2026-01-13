@@ -23,7 +23,7 @@ if [ $? -eq 0 ]; then
     echo "   ./panda_vault_v2"
     echo ""
     echo "🌐 Server will be available at:"
-    echo "   http://localhost:8082"
+    echo "   http://localhost:5000"
 else
     echo "❌ Build failed!"
     exit 1
