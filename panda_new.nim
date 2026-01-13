@@ -266,6 +266,7 @@ proc addUserToDatabase(username, password, accessKey, secretKey, bucketName, end
     return true
 
 proc updateUserInDatabase(username: string, updates: Table[string, string]): bool {.gcsafe.} =
+  # Note: Callers must hash passwords before calling this function
   {.gcsafe.}:
     if username notin usersDatabase:
       return false
