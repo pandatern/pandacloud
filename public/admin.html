@@ -4,7 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panda Cloud - Admin Panel</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        black: '#000000',
+                        white: '#ffffff',
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         body { background-color: #ffffff; color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -35,8 +48,8 @@
             <h2 class="text-2xl font-semibold text-center mb-2 text-black">Admin Panel</h2>
             <p class="text-gray-600 text-center text-sm mb-8">User Management System</p>
             <form onsubmit="event.preventDefault(); adminLogin();" class="space-y-4">
-                <input type="text" id="adminUserId" placeholder="Admin User ID" class="w-full bg-white text-black placeholder-gray-400 px-4 py-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent" required>
-                <input type="password" id="adminPassword" placeholder="Admin Password" class="w-full bg-white text-black placeholder-gray-400 px-4 py-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent" required>
+                <input type="text" id="adminUserId" placeholder="Admin User ID" autocomplete="username" class="w-full bg-white text-black placeholder-gray-400 px-4 py-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent" required>
+                <input type="password" id="adminPassword" placeholder="Admin Password" autocomplete="current-password" class="w-full bg-white text-black placeholder-gray-400 px-4 py-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent" required>
                 <button type="submit" id="adminLoginBtn" class="w-full btn-primary font-medium py-3 rounded transition flex justify-center items-center gap-2 mt-2">
                     <i class="ph-bold ph-sign-in"></i>
                     Admin Sign In
@@ -256,15 +269,26 @@
         let adminSessionId = null;
 
         // --- Helper Functions ---
+        function escapeHtml(unsafe) {
+            if (unsafe === undefined || unsafe === null) return "";
+            return String(unsafe)
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
             toast.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg text-white shadow-lg transform transition-all duration-300 translate-x-full ${
                 type === 'error' ? 'bg-red-600' : 
                 type === 'success' ? 'bg-green-600' : 'bg-gray-700'
             }`;
+            const escapedMessage = escapeHtml(message);
             toast.innerHTML = `<div class="flex items-center gap-2">
                 <i class="ph-bold ${type === 'error' ? 'ph-x-circle' : type === 'success' ? 'ph-check-circle' : 'ph-info'}"></i>
-                <span>${message}</span>
+                <span>${escapedMessage}</span>
             </div>`;
             document.body.appendChild(toast);
             
@@ -351,21 +375,26 @@
                         const row = tbody.insertRow();
                         row.className = 'hover:bg-gray-50';
                         
+                        const escapedUsername = escapeHtml(user.username);
+                        const escapedBucket = escapeHtml(user.bucket);
+                        const escapedEndpoint = escapeHtml(user.endpoint);
+                        const escapedRegion = escapeHtml(user.region);
+                        
                         row.innerHTML = `
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="w-8 h-8 bg-black rounded-full flex items-center justify-center mr-3">
                                         <i class="ph-bold ph-user text-white text-sm"></i>
                                     </div>
-                                    <span class="text-sm font-medium text-black">${user.username}</span>
+                                    <span class="text-sm font-medium text-black">${escapedUsername}</span>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${user.bucket}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${user.endpoint}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${user.region}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${escapedBucket}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${escapedEndpoint}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${escapedRegion}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <button onclick="selectUserForUpdate('${user.username}')" class="btn-secondary px-3 py-1 rounded text-xs mr-2">Edit</button>
-                                <button onclick="quickDeleteUser('${user.username}')" class="btn-danger px-3 py-1 rounded text-xs">Delete</button>
+                                <button onclick="selectUserForUpdate('${escapedUsername}')" class="btn-secondary px-3 py-1 rounded text-xs mr-2">Edit</button>
+                                <button onclick="quickDeleteUser('${escapedUsername}')" class="btn-danger px-3 py-1 rounded text-xs">Delete</button>
                             </td>
                         `;
                     });
@@ -384,10 +413,10 @@
                         tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No users found</td></tr>';
                     }
                 } else {
-                    placeholder.innerHTML = `<p class="text-red-600">Error: ${result.error}</p>`;
+                    placeholder.innerHTML = `<p class="text-red-600">Error: ${escapeHtml(result.error)}</p>`;
                 }
             } catch (error) {
-                placeholder.innerHTML = `<p class="text-red-600">Connection error: ${error.message}</p>`;
+                placeholder.innerHTML = `<p class="text-red-600">Connection error: ${escapeHtml(error.message)}</p>`;
             }
         }
 

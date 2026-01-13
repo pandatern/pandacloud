@@ -33,22 +33,24 @@ git clone https://github.com/pandatern/cloud.git
 cd cloud
 ```
 
-2. Create `.env` file:
+2. Build for production:
 ```bash
-USER_yourname_PASSWORD="your_password"
-USER_yourname_AWS_ACCESS_KEY_ID="your_access_key"
-USER_yourname_AWS_SECRET_ACCESS_KEY="your_secret_key"  
-USER_yourname_AWS_S3_BUCKET="your_bucket"
-USER_yourname_AWS_S3_ENDPOINT="s3.tebi.io"
+chmod +x build.sh
+./build.sh
 ```
 
-3. Build and run:
+3. Configure users in `users.txt`:
 ```bash
-chmod +x run_nimble.sh
-./run_nimble.sh
+# Format: username:password:access_key:secret_key:bucket:endpoint:region
+demo:demo123:your_access_key:your_secret_key:your_bucket:s3.tebi.io:us-east-1
 ```
 
-4. Access at `http://localhost:8082`
+4. Start the server:
+```bash
+./panda_vault_v2
+```
+
+5. Access at `http://localhost:8082`
 
 ## Multi-User Setup
 
@@ -69,6 +71,16 @@ USER_bob_AWS_S3_BUCKET="bob_bucket"
 ```
 
 ## Production Deployment
+
+### Quick Deployment
+```bash
+# Build and start
+./build.sh
+./panda_vault_v2 &
+
+# Hot deploy frontend updates (without restart)
+./hotdeploy.sh
+```
 
 ### With Nginx (Recommended)
 

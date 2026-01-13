@@ -39,3 +39,4 @@ deploy.sh
 auto_deploy.exp
 DEPLOYMENT_GUIDE.mdv1/
 v2/
+.aider*

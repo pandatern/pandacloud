@@ -1,12 +1,9 @@
 import jester, json, tables, times, strutils, httpclient, nimcrypto, uri, strformat, xmltree, xmlparser, std/sysrand, net, os
-when defined(ssl):
-  import openssl
 
 echo "🚀 STARTING PANDA VAULT ON PORT 9090"
 
 settings:
   port = Port(5000)
-  numThreads = 1
 
 type
   UserSession = object
@@ -276,7 +273,7 @@ proc updateUserInDatabase(username: string, updates: Table[string, string]): boo
     var user = usersDatabase[username]
     
     if "password" in updates:
-      user.password = updates["password"]  # Password is already hashed when passed to this function
+      user.password = hashPassword(updates["password"])
     if "accessKey" in updates:
       user.accessKey = updates["accessKey"]
     if "secretKey" in updates:
@@ -474,43 +471,40 @@ proc cacheS3Tier(session: UserSession, hasPrefix: bool, tier: S3ApiTier) =
 
 proc sendS3Request(session: UserSession, httpMethod: string, key: string, query: string = "", body: string = ""): Response {.gcsafe.} =
   {.gcsafe.}:
-    let service = getService(session)
-    let region = session.region
-    # Use current time (fixed time was for debugging)
-    let datetime = now().utc
-    let amzDate = datetime.format("yyyyMMdd'T'HHmmss'Z'")
-    let dateStamp = datetime.format("yyyyMMdd")
-    # Virtual-hosted style host: bucket.endpoint
-    let host = fmt"{session.bucketName}.{session.endpoint}"
+    let
+      service = getService(session)
+      region = session.region
+      # Use current time (fixed time was for debugging)
+      datetime = now().utc
+      amzDate = datetime.format("yyyyMMdd'T'HHmmss'Z'")
+      dateStamp = datetime.format("yyyyMMdd")
+      # Virtual-hosted style host: bucket.endpoint
+      host = fmt"{session.bucketName}.{session.endpoint}"
   
-    # Virtual-hosted style canonical URI - when using virtual hosted style,
-    # the bucket is in the host, so canonical URI is just the key path
-    let encodedKey = key.encodeUrl(usePlus = false)
-    let canonicalUri = if key.len == 0: "/" else: fmt"/{encodedKey}"
-
-    let payloadHash = sha256Hex(body)
-
-    # For HEAD requests, don't include x-amz-content-sha256 (like boto3)  
-    let canonicalHeaders = if httpMethod == "HEAD":
-        fmt"host:{host}" & "\n" & fmt"x-amz-date:{amzDate}" & "\n" & "\n"
-      else:
-        fmt"host:{host}" & "\n" & fmt"x-amz-content-sha256:{payloadHash}" & "\n" & fmt"x-amz-date:{amzDate}" & "\n" & "\n"
-        
-    let signedHeaders = if httpMethod == "HEAD": "host;x-amz-date" else: "host;x-amz-content-sha256;x-amz-date"
-    let canonicalRequest = httpMethod & "\n" & canonicalUri & "\n" & query & "\n" & canonicalHeaders & signedHeaders & "\n" & payloadHash
-
-    let algorithm = "AWS4-HMAC-SHA256"
-    let credentialScope = fmt"{dateStamp}/{region}/{service}/aws4_request"
-    let stringToSign = algorithm & "\n" & amzDate & "\n" & credentialScope & "\n" & sha256Hex(canonicalRequest)
-    let signingKey = getSignatureKey(session.secretKey, dateStamp, region, service)
-    let signature = ($hmac(sha256, signingKey.data, stringToSign)).toLowerAscii()
+      # Virtual-hosted style canonical URI - when using virtual hosted style,
+      # the bucket is in the host, so canonical URI is just the key path
+      encodedKey = key.encodeUrl(usePlus = false)
+      canonicalUri = if key.len == 0: "/" else: fmt"/{encodedKey}"
   
-    # Use local HTTP client with connection pooling  
-    when defined(ssl):
-      let sslContext = newContext(verifyMode = CVerifyNone)
-      var httpClient = newHttpClient(sslContext = sslContext, timeout = 5000)
-    else:
-      var httpClient = newHttpClient(timeout = 5000)
+      payloadHash = sha256Hex(body)
+  
+      # For HEAD requests, don't include x-amz-content-sha256 (like boto3)  
+      canonicalHeaders = if httpMethod == "HEAD":
+          fmt"host:{host}" & "\n" & fmt"x-amz-date:{amzDate}" & "\n" & "\n"
+        else:
+          fmt"host:{host}" & "\n" & fmt"x-amz-content-sha256:{payloadHash}" & "\n" & fmt"x-amz-date:{amzDate}" & "\n" & "\n"
+          
+      signedHeaders = if httpMethod == "HEAD": "host;x-amz-date" else: "host;x-amz-content-sha256;x-amz-date"
+      canonicalRequest = httpMethod & "\n" & canonicalUri & "\n" & query & "\n" & canonicalHeaders & signedHeaders & "\n" & payloadHash
+  
+      algorithm = "AWS4-HMAC-SHA256"
+      credentialScope = fmt"{dateStamp}/{region}/{service}/aws4_request"
+      stringToSign = algorithm & "\n" & amzDate & "\n" & credentialScope & "\n" & sha256Hex(canonicalRequest)
+      signingKey = getSignatureKey(session.secretKey, dateStamp, region, service)
+      signature = ($hmac(sha256, signingKey.data, stringToSign)).toLowerAscii()
+  
+    # Use local HTTP client with connection pooling
+    let httpClient = newHttpClient(timeout = 5000)
     httpClient.headers = newHttpHeaders({
       "Authorization": fmt"{algorithm} Credential={session.accessKey}/{credentialScope}, SignedHeaders={signedHeaders}, Signature={signature}",
       "X-Amz-Date": amzDate,
@@ -520,17 +514,17 @@ proc sendS3Request(session: UserSession, httpMethod: string, key: string, query:
     
     if httpMethod != "HEAD":
       httpClient.headers["X-Amz-Content-Sha256"] = payloadHash
-
+  
     # Virtual-hosted style URL
     let url = getS3Url(session, if key.len > 0: encodedKey else: "") & (if query.len > 0: "?" & query else: "")
     echo "🌐 Making request to: ", url
-
+  
     if httpMethod == "DELETE":
       httpClient.headers["Content-Length"] = "0"
     elif httpMethod == "PUT" and body.len == 0:
       # For empty PUT requests (like folder creation), set content length to 0
       httpClient.headers["Content-Length"] = "0"
-
+  
     case httpMethod:
       of "GET": return httpClient.get(url)
       of "DELETE": return httpClient.delete(url)
@@ -1239,7 +1233,6 @@ routes:
 
 echo "🐼 Panda Cloud - http://localhost:5000"
 echo "📁 Bucket: ", envConfig.bucketName, " | 🌐 Endpoint: ", envConfig.endpoint
-
 # Validate system time at startup
 validateSystemTime()
 runForever()
