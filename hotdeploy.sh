@@ -27,7 +27,7 @@ fi
 
 # Check if server is running
 if pgrep -f "panda_vault_v2" > /dev/null; then
-    echo "✅ Server is running on port 8082"
+    echo "✅ Server is running on port 5000"
     echo "🔧 Frontend files updated without server restart"
 else
     echo "⚠️  Server is not running. Start it with: ./panda_vault_v2"
@@ -35,5 +35,5 @@ fi
 
 echo ""
 echo "✅ Hot deployment complete!"
-echo "🌐 Changes are live at: http://localhost:8082"
+echo "🌐 Changes are live at: http://localhost:5000"
 echo "📋 Backup created in: $backup_dir"
