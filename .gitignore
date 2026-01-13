@@ -1,6 +1,9 @@
 # Environment files
 .env
 
+# SECURITY: User credentials file (contains sensitive AWS keys)
+users.txt
+
 # SSH keys  
 Baymax.txt
 *.pem

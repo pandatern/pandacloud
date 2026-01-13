@@ -2,7 +2,7 @@ import jester, json, tables, times, strutils, httpclient, nimcrypto, uri, strfor
 when defined(ssl):
   import openssl
 
-echo "🚀 STARTING PANDA VAULT ON PORT 9090"
+echo "🚀 STARTING PANDA VAULT ON PORT 5000"
 
 settings:
   port = Port(5000)
@@ -350,7 +350,7 @@ proc getService(session: UserSession): string =
 
 proc validateSystemTime() =
   let nowUtc = now().utc
-  if nowUtc.year > 2030 or nowUtc.year < 2020:
+  if nowUtc.year > 2050 or nowUtc.year < 2020:  # SECURITY: Extended year range to be future-proof
     quit("🚨 SYSTEM CLOCK IS INVALID: " & $nowUtc & " - Fix system time with 'sudo ntpdate pool.ntp.org'")
   echo "✅ System time validated: ", nowUtc
 
@@ -1050,6 +1050,7 @@ routes:
       try:
         let sessionId = $request.headers["X-Session-ID"]
         let session = getSession(sessionId)
+        requireAdmin(session)  # SECURITY: Require admin access for debug endpoint
         
         # Test different S3 operations to help diagnose issues
         var results = newJObject()
@@ -1206,7 +1207,11 @@ routes:
         
         var updates = initTable[string, string]()
         for key, value in updatesJson:
-          updates[key] = value.getStr()
+          if key == "password":
+            # SECURITY FIX: Hash password before storing
+            updates[key] = hashPassword(value.getStr())
+          else:
+            updates[key] = value.getStr()
         
         if updateUserInDatabase(username, updates):
           resp %*{"success": true, "message": "User updated successfully"}
